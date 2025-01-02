@@ -66,3 +66,7 @@ The script will prompt you for the following:
 
 The script will then proceed to send transactions and display relevant information, including wallet balances and confirmation of successful transactions. A countdown will show the remaining time before the next batch.
 
+##Disclaimer
+This script is provided "as-is" for educational purposes only. The author and contributors are not responsible for any damages, losses, or legal issues arising from the use of this script. Users must ensure compliance with local laws and regulations regarding cryptocurrency transactions and blockchain technology.
+
+Use at your own risk.
