@@ -54,17 +54,24 @@ Ensure you have the following files in the same directory as the script:
 ### 4. Running the Script
 
 To execute the script, run the following command:
-
 ```bash
 node autosend.js
 ```
-
 The script will prompt you for the following:
 
 - **Amount of HAUST to send**: Enter the number of HAUST tokens you want to send per transaction.
 - **Wait time before next batch**: Enter how many hours to wait before sending the next batch of transactions.
 
 The script will then proceed to send transactions and display relevant information, including wallet balances and confirmation of successful transactions. A countdown will show the remaining time before the next batch.
+
+### 5. If you want send to random Address, you can generate it
+
+Execute the script, run the following command:
+```bash
+node GenerateRandomAddress.js
+```
+and address will upload it to listaddress.txt
+
 
 ### Disclaimer
 This script is provided "as-is" for educational purposes only. The author and contributors are not responsible for any damages, losses, or legal issues arising from the use of this script. Users must ensure compliance with local laws and regulations regarding cryptocurrency transactions and blockchain technology.
