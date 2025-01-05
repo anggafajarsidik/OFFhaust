@@ -1,6 +1,5 @@
 const { ethers } = require("ethers");
 const fs = require("fs");
-const inquirer = require("inquirer");
 
 // Configuration
 const RPC_URL = "https://rpc-test.haust.network";
@@ -11,49 +10,11 @@ const MULTIPLE_WALLETS_FILE = "listaddress.txt";
 // ANSI color codes
 const colors = {
     reset: "\x1b[0m",
-    purple: "\x1b[35m",
     blue: "\x1b[34m",
     green: "\x1b[32m",
     red: "\x1b[31m",
     yellow: "\x1b[33m",
 };
-
-// Custom ASCII art logo
-const createdByLogo = `
- ██████╗ ███████╗███████╗    ███████╗ █████╗ ███╗   ███╗██╗██╗  ██╗   ██╗
-██╔═══██╗██╔════╝██╔════╝    ██╔════╝██╔══██╗████╗ ████║██║██║  ╚██╗ ██╔╝
-██║   ██║█████╗  █████╗      █████╗  ███████║██╔████╔██║██║██║   ╚████╔╝
-██║   ██║██╔══╝  ██╔══╝      ██╔══╝  ██╔══██║██║╚██╔╝██║██║██║    ╚██╔╝
-╚██████╔╝██║     ██║         ██║     ██║  ██║██║ ╚═╝ ██║██║███████╗██║
- ╚═════╝ ╚═╝     ╚═╝         ╚═╝     ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚══════╝╚═╝
-`;
-
-const creativeMessage = `
-We’re here to make blockchain easier and better.
-`;
-
-function displayAnimatedText(text, color, callback) {
-    let index = 0;
-    const interval = setInterval(() => {
-        if (index < text.length) {
-            process.stdout.write(color + text[index++] + colors.reset);
-        } else {
-            process.stdout.write("\n");
-            clearInterval(interval);
-            if (callback) callback(); // Call the next function after animation
-        }
-    }, 50);
-}
-
-function displayMessage(callback) {
-    displayAnimatedText("Script Created by:", colors.blue, () => {
-        console.log(`${colors.purple}${createdByLogo}${colors.reset}`);
-        displayAnimatedText(creativeMessage, colors.blue, callback);
-    });
-}
-
-// Clear terminal once at the beginning
-console.clear();
 
 // Load private keys from file
 function loadPrivateKeys() {
@@ -86,12 +47,11 @@ function countdownTimer(durationMs) {
     return new Promise((resolve) => {
         let remainingTime = durationMs / 1000; // Convert to seconds
         const interval = setInterval(() => {
-            const hours = Math.floor(remainingTime / 3600);
-            const minutes = Math.floor((remainingTime % 3600) / 60);
+            const minutes = Math.floor(remainingTime / 60);
             const seconds = Math.floor(remainingTime % 60);
 
             process.stdout.write(
-                `\r${colors.green}Countdown to next batch: ${colors.blue}${hours}h ${minutes}m ${seconds}s remaining...${colors.reset}`
+                `\r${colors.green}Countdown to next batch: ${colors.blue}${minutes}m ${seconds}s remaining...${colors.reset}`
             );
 
             remainingTime--;
@@ -135,52 +95,59 @@ async function sendTransaction(wallet, recipientAddress, amountToSend) {
 }
 
 // Main function
-async function main() {
-    displayMessage(async () => {
-        const privateKeys = loadPrivateKeys();
-        const recipients = loadRecipients();
-        if (privateKeys.length === 0) {
-            console.error(`${colors.red}No private keys found in YourPrivateKey.txt!${colors.reset}`);
-            return;
+async function main(amountToSend, delayMs) {
+    const privateKeys = loadPrivateKeys();
+    const recipients = loadRecipients();
+    if (privateKeys.length === 0) {
+        console.error(`${colors.red}No private keys found in YourPrivateKey.txt!${colors.reset}`);
+        return;
+    }
+    if (recipients.length === 0) {
+        console.error(`${colors.red}No recipient addresses found in listaddress.txt!${colors.reset}`);
+        return;
+    }
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+    for (const privateKey of privateKeys) {
+        const wallet = new ethers.Wallet(privateKey, provider);
+        console.log(`\n${colors.green}Starting transactions from sender: ${wallet.address}${colors.reset}`);
+        for (const recipient of recipients) {
+            await sendTransaction(wallet, recipient, amountToSend);
         }
-        if (recipients.length === 0) {
-            console.error(`${colors.red}No recipient addresses found in listaddress.txt!${colors.reset}`);
-            return;
-        }
-        const provider = new ethers.JsonRpcProvider(RPC_URL);
+    }
 
-        // Prompt only once for the amount to send and delay
-        const prompt = inquirer.createPromptModule();
-        const answers = await prompt([
-            {
-                type: "input",
-                name: "amountToSend",
-                message: "Enter the amount of HAUST to send to each recipient:",
-                validate: (input) => !isNaN(parseFloat(input)) && parseFloat(input) > 0 || `${colors.red}Invalid amount!${colors.reset}`,
-            },
-            {
-                type: "input",
-                name: "delayHours",
-                message: "How many hours to wait before sending the next batch of transactions? (e.g., 1 hour = 1, 24 hours = 24):",
-                validate: (input) => !isNaN(parseInt(input)) && parseInt(input) > 0 || `${colors.red}Invalid number of hours!${colors.reset}`,
-            },
-        ]);
-
-        const amountToSend = answers.amountToSend;
-        const delayMs = parseInt(answers.delayHours) * 60 * 60 * 1000;
-
-        for (const privateKey of privateKeys) {
-            const wallet = new ethers.Wallet(privateKey, provider);
-            console.log(`\n${colors.purple}Starting transactions from sender: ${wallet.address}${colors.reset}`);
-            for (const recipient of recipients) {
-                await sendTransaction(wallet, recipient, amountToSend);
-            }
-        }
-
-        console.log(`\n${colors.green}All transactions completed! Countdown to next batch starting...${colors.reset}`);
-        await countdownTimer(delayMs); // Wait before next batch
-        main(); // Repeat the process for the next batch
-    });
+    console.log(`\n${colors.green}All transactions completed! Countdown to next batch starting...${colors.reset}`);
+    await countdownTimer(delayMs);
+    main(amountToSend, delayMs); // Repeat for next batch
 }
 
-main();
+// Prompt for the initial configuration and start the process
+(async () => {
+    console.clear();
+    console.log(`${colors.blue}Welcome to the HAUST Batch Transaction Script!${colors.reset}`);
+    const readline = require("readline").createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+
+    readline.question("Enter the amount of HAUST to send to each recipient: ", (amount) => {
+        if (isNaN(amount) || parseFloat(amount) <= 0) {
+            console.error(`${colors.red}Invalid amount! Exiting...${colors.reset}`);
+            readline.close();
+            return;
+        }
+
+        readline.question("Enter the delay between batches (in hours): ", (hours) => {
+            if (isNaN(hours) || parseInt(hours) <= 0) {
+                console.error(`${colors.red}Invalid delay! Exiting...${colors.reset}`);
+                readline.close();
+                return;
+            }
+
+            const amountToSend = parseFloat(amount).toFixed(18); // Ensure correct formatting
+            const delayMs = parseInt(hours) * 60 * 60 * 1000; // Convert hours to milliseconds
+            readline.close();
+            main(amountToSend, delayMs);
+        });
+    });
+})();
