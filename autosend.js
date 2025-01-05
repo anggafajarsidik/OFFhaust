@@ -33,17 +33,9 @@ We’re here to make blockchain easier and better.
 `;
 
 function displayMessage() {
-    let message = `${colors.blue}Script Created by: ${colors.reset} ${colors.purple}${createdByLogo}${colors.reset}${colors.blue}${creativeMessage}${colors.reset}`;
-    let i = 0;
-
-    // Scrolling text effect
-    setInterval(() => {
-        process.stdout.write(`\r${message.substring(i)}${colors.reset}`);
-        i++;
-        if (i >= message.length) {
-            i = 0;
-        }
-    }, 100); // Adjust speed of scrolling by changing the interval time
+    console.log(`${colors.blue}Script Created by:${colors.reset}`);
+    console.log(`${colors.purple}${createdByLogo}${colors.reset}`);
+    console.log(`${colors.blue}${creativeMessage}${colors.reset}`);
 }
 
 // Clear terminal once at the beginning
