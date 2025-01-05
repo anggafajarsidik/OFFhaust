@@ -16,31 +16,15 @@ const colors = {
     yellow: "\x1b[33m",
 };
 
-// Load private keys from file
-function loadPrivateKeys() {
-    try {
-        const privateKeys = fs.readFileSync(PRIVATE_KEY_FILE, "utf8").trim().split("\n");
-        return privateKeys.map((key) => key.trim()).filter((key) => key.length > 0);
-    } catch (error) {
-        console.error(`${colors.red}Error reading private keys from ${PRIVATE_KEY_FILE}:${colors.reset}`, error.message);
-        process.exit(1);
-    }
-}
-
-// Load recipient addresses from file
-function loadRecipients() {
-    try {
-        if (fs.existsSync(MULTIPLE_WALLETS_FILE)) {
-            const addresses = fs.readFileSync(MULTIPLE_WALLETS_FILE, "utf8").trim().split("\n");
-            return addresses.filter((addr) => ethers.isAddress(addr));
-        }
-        console.error(`${colors.red}File ${MULTIPLE_WALLETS_FILE} not found or is empty.${colors.reset}`);
-        process.exit(1);
-    } catch (error) {
-        console.error(`${colors.red}Error reading addresses from ${MULTIPLE_WALLETS_FILE}:${colors.reset}`, error.message);
-        process.exit(1);
-    }
-}
+// ASCII logo
+const logo = `
+ ██████╗ ███████╗███████╗    ███████╗ █████╗ ███╗   ███╗██╗██╗  ██╗   ██╗
+██╔═══██╗██╔════╝██╔════╝    ██╔════╝██╔══██╗████╗ ████║██║██║  ╚██╗ ██╔╝
+██║   ██║█████╗  █████╗      █████╗  ███████║██╔████╔██║██║██║   ╚████╔╝
+██║   ██║██╔══╝  ██╔══╝      ██╔══╝  ██╔══██║██║╚██╔╝██║██║██║    ╚██╔╝
+╚██████╔╝██║     ██║         ██║     ██║  ██║██║ ╚═╝ ██║██║███████╗██║
+ ╚═════╝ ╚═╝     ╚═╝         ╚═╝     ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚══════╝╚═╝
+`;
 
 // Countdown timer
 function countdownTimer(durationMs) {
@@ -68,18 +52,7 @@ function countdownTimer(durationMs) {
 // Send transaction
 async function sendTransaction(wallet, recipientAddress, amountToSend) {
     try {
-        if (wallet.address.toLowerCase() === recipientAddress.toLowerCase()) {
-            console.warn(`${colors.yellow}Skipping: Cannot send to the sender's own address (${wallet.address})${colors.reset}`);
-            return;
-        }
         console.log(`${colors.blue}Sending transaction from ${wallet.address} to ${recipientAddress}...${colors.reset}`);
-        const balance = await wallet.provider.getBalance(wallet.address);
-        const balanceInEther = ethers.formatEther(balance);
-        console.log(`${colors.green}Wallet balance: ${balanceInEther} HAUST${colors.reset}`);
-        if (BigInt(balance) < ethers.parseEther(amountToSend)) {
-            console.error(`${colors.red}Insufficient funds!${colors.reset}`);
-            return;
-        }
         const tx = {
             to: recipientAddress,
             value: ethers.parseEther(amountToSend),
@@ -90,41 +63,37 @@ async function sendTransaction(wallet, recipientAddress, amountToSend) {
         console.log(`${colors.green}Transaction confirmed in block ${receipt.blockNumber}${colors.reset}`);
         console.log(`${colors.green}View on Explorer: https://explorer-test.haust.network/tx/${txResponse.hash}${colors.reset}`);
     } catch (error) {
-        console.error(`${colors.red}Error sending transaction from ${wallet.address} to ${recipientAddress}:${colors.reset}`, error.message);
+        console.error(`${colors.red}Error sending transaction:${colors.reset}`, error.message);
     }
 }
 
 // Main function
 async function main(amountToSend, delayMs) {
-    const privateKeys = loadPrivateKeys();
-    const recipients = loadRecipients();
-    if (privateKeys.length === 0) {
-        console.error(`${colors.red}No private keys found in YourPrivateKey.txt!${colors.reset}`);
-        return;
-    }
-    if (recipients.length === 0) {
-        console.error(`${colors.red}No recipient addresses found in listaddress.txt!${colors.reset}`);
-        return;
-    }
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    console.clear();
+    console.log(`${colors.green}${logo}${colors.reset}`);
+    console.log(`${colors.blue}Starting batch transactions...${colors.reset}`);
+
+    const privateKeys = fs.readFileSync(PRIVATE_KEY_FILE, "utf8").trim().split("\n");
+    const recipients = fs.readFileSync(MULTIPLE_WALLETS_FILE, "utf8").trim().split("\n");
 
     for (const privateKey of privateKeys) {
-        const wallet = new ethers.Wallet(privateKey, provider);
-        console.log(`\n${colors.green}Starting transactions from sender: ${wallet.address}${colors.reset}`);
+        const wallet = new ethers.Wallet(privateKey, new ethers.JsonRpcProvider(RPC_URL));
         for (const recipient of recipients) {
             await sendTransaction(wallet, recipient, amountToSend);
         }
     }
 
-    console.log(`\n${colors.green}All transactions completed! Countdown to next batch starting...${colors.reset}`);
+    console.log(`${colors.green}Batch complete! Waiting for the next batch...${colors.reset}`);
     await countdownTimer(delayMs);
-    main(amountToSend, delayMs); // Repeat for next batch
+    main(amountToSend, delayMs); // Repeat
 }
 
-// Prompt for the initial configuration and start the process
+// Initial prompt
 (async () => {
     console.clear();
+    console.log(`${colors.green}${logo}${colors.reset}`);
     console.log(`${colors.blue}Welcome to the HAUST Batch Transaction Script!${colors.reset}`);
+
     const readline = require("readline").createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -144,8 +113,8 @@ async function main(amountToSend, delayMs) {
                 return;
             }
 
-            const amountToSend = parseFloat(amount).toFixed(18); // Ensure correct formatting
-            const delayMs = parseInt(hours) * 60 * 60 * 1000; // Convert hours to milliseconds
+            const amountToSend = parseFloat(amount).toFixed(18); // Format amount
+            const delayMs = parseInt(hours) * 60 * 60 * 1000; // Convert to milliseconds
             readline.close();
             main(amountToSend, delayMs);
         });
