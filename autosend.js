@@ -25,21 +25,35 @@ const createdByLogo = `
 ██║   ██║█████╗  █████╗      █████╗  ███████║██╔████╔██║██║██║   ╚████╔╝
 ██║   ██║██╔══╝  ██╔══╝      ██╔══╝  ██╔══██║██║╚██╔╝██║██║██║    ╚██╔╝
 ╚██████╔╝██║     ██║         ██║     ██║  ██║██║ ╚═╝ ██║██║███████╗██║
- ╚═════╝ ╚═╝     ╚═╝         ╚═╝     ╚═╝  ╚═╝     ╚═╝╚═╝╚══════╝╚═╝
+ ╚═════╝ ╚═╝     ╚═╝         ╚═╝     ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚══════╝╚═╝
 `;
 
-const creativeMessage = `
-We’re here to make blockchain easier and better.
-`;
+const creativeMessage = "We’re here to make blockchain easier and better.";
 
-function displayMessage() {
-    console.log(`${colors.blue}Script Created by:${colors.reset}`);
-    console.log(`${colors.purple}${createdByLogo}${colors.reset}`);
-    console.log(`${colors.blue}${creativeMessage}${colors.reset}`);
+// Function to create a scrolling text effect
+function scrollingText(text, color, delay = 100) {
+    return new Promise((resolve) => {
+        let displayText = "";
+        let index = 0;
+        const interval = setInterval(() => {
+            process.stdout.write(`\r${color}${displayText}${colors.reset}`);
+            displayText += text[index++];
+            if (index > text.length) {
+                clearInterval(interval);
+                process.stdout.write("\n");
+                resolve();
+            }
+        }, delay);
+    });
 }
 
-// Clear terminal once at the beginning
-console.clear();
+// Display the intro with scrolling text
+async function displayMessage() {
+    console.clear();
+    await scrollingText("Script Created by:", colors.blue, 100);
+    console.log(`${colors.purple}${createdByLogo}${colors.reset}`);
+    await scrollingText(creativeMessage, colors.green, 100);
+}
 
 // Load private keys from file
 function loadPrivateKeys() {
@@ -72,11 +86,12 @@ function countdownTimer(durationMs) {
     return new Promise((resolve) => {
         let remainingTime = durationMs / 1000; // Convert to seconds
         const interval = setInterval(() => {
-            const minutes = Math.floor(remainingTime / 60);
+            const hours = Math.floor(remainingTime / 3600);
+            const minutes = Math.floor((remainingTime % 3600) / 60);
             const seconds = Math.floor(remainingTime % 60);
 
             process.stdout.write(
-                `\r${colors.green}Countdown to next batch: ${colors.blue}${minutes}m ${seconds}s remaining...${colors.reset}`
+                `\r${colors.green}Countdown to next batch: ${colors.blue}${hours}h ${minutes}m ${seconds}s remaining...${colors.reset}`
             );
 
             remainingTime--;
@@ -121,7 +136,7 @@ async function sendTransaction(wallet, recipientAddress, amountToSend) {
 
 // Main function
 async function main() {
-    displayMessage();
+    await displayMessage();
 
     const privateKeys = loadPrivateKeys();
     const recipients = loadRecipients();
@@ -135,7 +150,7 @@ async function main() {
     }
     const provider = new ethers.JsonRpcProvider(RPC_URL);
 
-    // Prompt only once for the amount to send and delay in minutes
+    // Prompt only once for the amount to send and delay
     const prompt = inquirer.createPromptModule();
     const answers = await prompt([
         {
@@ -146,26 +161,26 @@ async function main() {
         },
         {
             type: "input",
-            name: "delayMinutes",
-            message: "Enter the delay between batches in minutes:",
-            validate: (input) => !isNaN(parseInt(input)) && parseInt(input) > 0 || `${colors.red}Invalid number of minutes!${colors.reset}`,
+            name: "delayHours",
+            message: "How many hours to wait before sending the next batch of transactions? (e.g., 1 hour = 1, 24 hours = 24):",
+            validate: (input) => !isNaN(parseInt(input)) && parseInt(input) > 0 || `${colors.red}Invalid number of hours!${colors.reset}`,
         },
     ]);
 
     const amountToSend = answers.amountToSend;
-    const delayMs = parseInt(answers.delayMinutes) * 60 * 1000;
+    const delayMs = parseInt(answers.delayHours) * 60 * 60 * 1000;
 
-    while (true) {
-        for (const privateKey of privateKeys) {
-            const wallet = new ethers.Wallet(privateKey, provider);
-            console.log(`\n${colors.purple}Starting transactions from sender: ${wallet.address}${colors.reset}`);
-            for (const recipient of recipients) {
-                await sendTransaction(wallet, recipient, amountToSend);
-            }
+    for (const privateKey of privateKeys) {
+        const wallet = new ethers.Wallet(privateKey, provider);
+        console.log(`\n${colors.purple}Starting transactions from sender: ${wallet.address}${colors.reset}`);
+        for (const recipient of recipients) {
+            await sendTransaction(wallet, recipient, amountToSend);
         }
-        console.log(`\n${colors.green}All transactions completed! Countdown to next batch starting...${colors.reset}`);
-        await countdownTimer(delayMs); // Wait before next batch
     }
+
+    console.log(`\n${colors.green}All transactions completed! Countdown to next batch starting...${colors.reset}`);
+    await countdownTimer(delayMs); // Wait before next batch
+    main(); // Repeat the process for the next batch
 }
 
 main();
