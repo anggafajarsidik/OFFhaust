@@ -3,8 +3,8 @@ const fs = require("fs");
 const inquirer = require("inquirer");
 
 // Configuration
-const RPC_URL = "https://rpc-test.haust.network";
-const CHAIN_ID = 1570754601;
+const RPC_URL = "https://rpc-testnet.haust.app";
+const CHAIN_ID = 1523903251;
 const PRIVATE_KEY_FILE = "YourPrivateKey.txt";
 const MULTIPLE_WALLETS_FILE = "listaddress.txt";
 
